@@ -164,7 +164,9 @@ func compileField(name string, q Question) (compiledField, error) {
 		return f, fmt.Errorf("instructions must be a nonempty string, object, or array")
 	}
 	f.Description = description
-	add := func(value any, description string) {
+	// Choices carry only the descriptions the request gives, as in Bespoke's
+	// native_schema() for Nimble.
+	add := func(value any, description any) {
 		f.Choices = append(f.Choices, Choice{string(rune('A' + len(f.Choices))), value, description})
 	}
 	switch q.Type {
@@ -175,7 +177,7 @@ func compileField(name string, q Question) (compiledField, error) {
 				return f, fmt.Errorf("noul criteria must be an object of true/false descriptions")
 			}
 		}
-		no, yes := "No", "Yes"
+		var no, yes any
 		for key, value := range criteria.All() {
 			if value == nil {
 				return f, fmt.Errorf("noul descriptions must be strings")
@@ -208,7 +210,7 @@ func compileField(name string, q Question) (compiledField, error) {
 			if strings.TrimSpace(key) == "" {
 				return f, fmt.Errorf("choice keys must not be empty")
 			}
-			description := key
+			var description any
 			if value != nil {
 				description = *value
 			}

@@ -14,11 +14,12 @@ func TestPublisherPrompts(t *testing.T) {
 	if err := json.Unmarshal([]byte(`{"model":"decision","state":"Paid €20 & <tag>. Literal \\u2028, quote \" and colon: comma,","questions":{"refund":{"type":"noul","instructions":"Refund requested?"}}}`), &req); err != nil {
 		t.Fatal(err)
 	}
-	// Publisher contracts: Together's examples/decide.py payload() and Bespoke's
-	// parallel_schema.prepare_prompts(), with false/true mapped to No/Yes.
+	// Publisher contracts: Together's examples/decide.py payload(), with
+	// false/true described as No/Yes, and Bespoke's native_schema(), which
+	// describes only the choices the request describes.
 	for _, tc := range []struct{ renderer, want string }{
 		{"tev1", `{"state": "Paid €20 & <tag>. Literal \\u2028, quote \" and colon: comma,", "question": "Refund requested?", "options": [{"label": "A", "key": "false", "description": "No"}, {"label": "B", "key": "true", "description": "Yes"}]}`},
-		{"", `{"context": "Paid €20 & \u003ctag\u003e. Literal \\u2028, quote \" and colon: comma,", "schema": [{"name": "refund", "description": "Refund requested?", "choices": [{"code": "A", "value": false, "description": "No"}, {"code": "B", "value": true, "description": "Yes"}]}]}` + "\n\nRequested field: \"refund\""},
+		{"", `{"context": "Paid €20 & \u003ctag\u003e. Literal \\u2028, quote \" and colon: comma,", "schema": [{"name": "refund", "description": "Refund requested?", "choices": [{"code": "A", "value": false}, {"code": "B", "value": true}]}]}` + "\n\nRequested field: \"refund\""},
 	} {
 		t.Run(tc.renderer, func(t *testing.T) {
 			compiled, err := Compile(req, tc.renderer)
@@ -49,6 +50,8 @@ func TestTevQuestions(t *testing.T) {
 	if err := compiled.Render(func(messages []api.Message) (string, error) { return messages[0].Content, nil }); err != nil {
 		t.Fatal(err)
 	}
+	// Tev1 describes noul as No/Yes and bare choices by key.
+	descriptions := [][]string{{"Charges and refunds", "technical"}, {"No", "Yes"}, {"Routine", "Urgent", "Emergency"}}
 	for i, row := range compiled.Request.Rows {
 		var payload struct {
 			State    string
@@ -63,7 +66,7 @@ func TestTevQuestions(t *testing.T) {
 			t.Fatalf("question %d was not compiled independently: %s", i, row.Prompt)
 		}
 		for j, option := range payload.Options {
-			if option.Label != row.Candidates[j] || option.Description != f.Choices[j].Description || option.Key == "" {
+			if option.Label != row.Candidates[j] || option.Description != descriptions[i][j] || option.Key == "" {
 				t.Fatalf("question %d option %d: %+v", i, j, option)
 			}
 		}

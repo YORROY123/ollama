@@ -872,10 +872,8 @@ components:
           properties:
             "false":
               type: string
-              default: "No"
             "true":
               type: string
-              default: "Yes"
           additionalProperties: false
     SystemOneScoreQuestion:
       title: Score
